@@ -59,4 +59,9 @@ export class UsersService {
       },
     });
   }
+
+  async updateProfile(id: string, name: string): Promise<User | null> {
+    await this.userRepository.update(id, { name });
+    return this.findById(id);
+  }
 }
