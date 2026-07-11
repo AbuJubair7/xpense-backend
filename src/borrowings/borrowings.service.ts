@@ -24,11 +24,23 @@ export class BorrowingsService {
     return this.borrowingRepository.save(borrowing);
   }
 
-  async findAll(userId: string): Promise<Borrowing[]> {
-    return this.borrowingRepository.find({
+  async findAll(userId: string, page: number = 1, limit: number = 10): Promise<{ data: Borrowing[]; pagination: any }> {
+    const skip = (page - 1) * limit;
+    const [data, total] = await this.borrowingRepository.findAndCount({
       where: { user: { id: userId } },
       order: { date: 'DESC', createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Borrowing> {

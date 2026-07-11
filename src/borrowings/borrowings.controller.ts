@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { BorrowingsService } from './borrowings.service';
 import { CreateBorrowingDto } from './dto/create-borrowing.dto';
@@ -27,8 +28,12 @@ export class BorrowingsController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.borrowingsService.findAll(req.user.id);
+  findAll(@Query('page') page: string, @Query('limit') limit: string, @Request() req) {
+    return this.borrowingsService.findAll(
+      req.user.id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10
+    );
   }
 
   @Get(':id')
