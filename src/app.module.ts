@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import 'dotenv/config';
+import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -14,23 +15,11 @@ import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST', 'localhost'),
-        port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get<string>('DB_USERNAME', 'postgres'),
-        password: configService.get<string>('DB_PASSWORD', 'postgres'),
-        database: configService.get<string>('DB_NAME', 'xpense'),
-        autoLoadEntities: true,
-        synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
-      }),
-      inject: [ConfigService],
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.SUPABASE_CONNECTION_STRING,
+      autoLoadEntities: true,
+      synchronize: process.env.DB_SYNCHRONIZE !== 'false',
     }),
     UsersModule,
     AuthModule,
@@ -44,4 +33,14 @@ import { AnalyticsModule } from './analytics/analytics.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements OnModuleInit {
+  private readonly logger = new Logger(AppModule.name);
+
+  constructor(private dataSource: DataSource) {}
+
+  onModuleInit() {
+    if (this.dataSource.isInitialized) {
+      this.logger.log('Successfully connected to Supabase Database');
+    }
+  }
+}
