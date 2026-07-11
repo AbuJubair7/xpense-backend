@@ -1,0 +1,61 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Loan } from './entities/loan.entity';
+import { CreateLoanDto } from './dto/create-loan.dto';
+import { UpdateLoanDto } from './dto/update-loan.dto';
+
+@Injectable()
+export class LoansService {
+  constructor(
+    @InjectRepository(Loan)
+    private readonly loanRepository: Repository<Loan>,
+  ) {}
+
+  async create(createLoanDto: CreateLoanDto, userId: string): Promise<Loan> {
+    const loan = this.loanRepository.create({
+      ...createLoanDto,
+      isSettled: false,
+      user: { id: userId } as any,
+    });
+    return this.loanRepository.save(loan);
+  }
+
+  async findAll(userId: string): Promise<Loan[]> {
+    return this.loanRepository.find({
+      where: { user: { id: userId } },
+      order: { date: 'DESC', createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string, userId: string): Promise<Loan> {
+    const loan = await this.loanRepository.findOne({
+      where: { id, user: { id: userId } },
+    });
+    if (!loan) {
+      throw new NotFoundException(`Loan with ID ${id} not found`);
+    }
+    return loan;
+  }
+
+  async update(
+    id: string,
+    updateLoanDto: UpdateLoanDto,
+    userId: string,
+  ): Promise<Loan> {
+    const loan = await this.findOne(id, userId);
+    Object.assign(loan, updateLoanDto);
+    return this.loanRepository.save(loan);
+  }
+
+  async settle(id: string, userId: string): Promise<Loan> {
+    const loan = await this.findOne(id, userId);
+    loan.isSettled = !loan.isSettled;
+    return this.loanRepository.save(loan);
+  }
+
+  async remove(id: string, userId: string): Promise<void> {
+    const loan = await this.findOne(id, userId);
+    await this.loanRepository.remove(loan);
+  }
+}
