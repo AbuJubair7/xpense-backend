@@ -9,5 +9,6 @@ import { AssetsModule } from '../assets/assets.module';
   imports: [TypeOrmModule.forFeature([Income]), AssetsModule],
   controllers: [IncomeController],
   providers: [IncomeService],
+  exports: [TypeOrmModule],
 })
 export class IncomeModule {}

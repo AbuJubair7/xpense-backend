@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { LoansService } from './loans.service';
 import { CreateLoanDto } from './dto/create-loan.dto';
@@ -27,8 +28,16 @@ export class LoansController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.loansService.findAll(req.user.id);
+  findAll(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Request() req,
+  ) {
+    return this.loansService.findAll(
+      req.user.id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+    );
   }
 
   @Get(':id')

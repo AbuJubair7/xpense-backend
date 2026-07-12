@@ -16,4 +16,9 @@ export class AuthController {
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
+
+  @Post('google')
+  googleLogin(@Body('credential') credential: string) {
+    return this.authService.googleLogin(credential);
+  }
 }

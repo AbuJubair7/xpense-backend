@@ -8,6 +8,6 @@ import { BorrowingsController } from './borrowings.controller';
   imports: [TypeOrmModule.forFeature([Borrowing])],
   controllers: [BorrowingsController],
   providers: [BorrowingsService],
-  exports: [BorrowingsService],
+  exports: [BorrowingsService, TypeOrmModule],
 })
 export class BorrowingsModule {}

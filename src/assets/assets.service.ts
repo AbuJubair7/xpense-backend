@@ -15,7 +15,7 @@ export class AssetsService {
   async create(createAssetDto: CreateAssetDto, userId: string): Promise<Asset> {
     const asset = this.assetRepository.create({
       ...createAssetDto,
-      user: { id: userId } as any,
+      user: { id: userId },
     });
     return this.assetRepository.save(asset);
   }

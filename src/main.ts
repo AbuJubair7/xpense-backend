@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,8 +9,20 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
-  // Set global API prefix
-  app.setGlobalPrefix('api');
+  // Set global API prefix but exclude the root route
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
+
+  // Swagger Configuration
+  const config = new DocumentBuilder()
+    .setTitle('Xpense API')
+    .setDescription('The Xpense API description')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
   // Enable global validation pipe
   app.useGlobalPipes(
@@ -20,8 +33,9 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT ?? 5000;
+  const port = process.env.PORT ?? 5001;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/api`);
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Swagger Docs available at: http://localhost:${port}/api`);
 }
-bootstrap();
+void bootstrap();

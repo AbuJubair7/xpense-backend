@@ -7,8 +7,31 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Get('summary')
+  getSummary(@Request() req?) {
+    return this.analyticsService.getSummary(req.user.id);
+  }
+
+  @Get('activity')
+  getActivity(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('fromDate') fromDate: string,
+    @Query('toDate') toDate: string,
+    @Query('kind') kind: string,
+    @Query('assetId') assetId: string,
+    @Request() req?,
+  ) {
+    return this.analyticsService.getActivity(
+      { page, limit, fromDate, toDate, kind, assetId },
+      req.user.id,
+    );
+  }
+
   @Get('history')
   getHistory(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('fromDay') fromDay?: string,
     @Query('toDay') toDay?: string,
     @Query('fromMonth') fromMonth?: string,
@@ -19,6 +42,8 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getHistory(
       {
+        page,
+        limit,
         fromDay,
         toDay,
         fromMonth,

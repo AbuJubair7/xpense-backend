@@ -25,8 +25,8 @@ export class IncomeService {
     // Create income record mapped to current user and target asset
     const income = this.incomeRepository.create({
       ...incomeData,
-      user: { id: userId } as any,
-      asset: { id: assetId } as any,
+      user: { id: userId },
+      asset: { id: assetId },
     });
     const savedIncome = await this.incomeRepository.save(income);
 
