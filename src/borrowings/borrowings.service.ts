@@ -19,12 +19,16 @@ export class BorrowingsService {
     const borrowing = this.borrowingRepository.create({
       ...createBorrowingDto,
       isSettled: false,
-      user: { id: userId } as any,
+      user: { id: userId },
     });
     return this.borrowingRepository.save(borrowing);
   }
 
-  async findAll(userId: string, page: number = 1, limit: number = 10): Promise<{ data: Borrowing[]; pagination: any }> {
+  async findAll(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ data: Borrowing[]; pagination: any }> {
     const skip = (page - 1) * limit;
     const [data, total] = await this.borrowingRepository.findAndCount({
       where: { user: { id: userId } },

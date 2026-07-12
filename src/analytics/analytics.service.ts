@@ -89,55 +89,67 @@ export class AnalyticsService {
     const limit = parseInt(query.limit || '10', 10);
     const offset = (page - 1) * limit;
 
-    // Fetch total expenses and breakdown without loading all entities
-    const allExpensesRaw = await this.expenseRepository.find({
-      select: { amount: true, category: true, date: true },
-      where: {
-        date: Between(startDate, endDate),
-        user: { id: userId },
-      },
-    });
+    // 1. Fetch paginated transactions
+    const [transactions, totalCount] =
+      await this.expenseRepository.findAndCount({
+        where: {
+          date: Between(startDate, endDate),
+          user: { id: userId },
+        },
+        order: { date: 'DESC', createdAt: 'DESC' },
+        skip: offset,
+        take: limit,
+        relations: { asset: true },
+      });
 
-    const [transactions, totalCount] = await this.expenseRepository.findAndCount({
-      where: {
-        date: Between(startDate, endDate),
-        user: { id: userId },
-      },
-      order: { date: 'DESC', createdAt: 'DESC' },
-      skip: offset,
-      take: limit,
-      relations: { asset: true },
-    });
+    // 2. Calculate total spending natively in DB
+    const totalSpendingResult = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select('SUM(expense.amount)', 'total')
+      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .getRawOne();
+    const totalSpending = Number(totalSpendingResult?.total || 0);
 
-    const totalSpending = allExpensesRaw.reduce(
-      (sum, item) => sum + Number(item.amount),
-      0,
-    );
+    // 3. Calculate category breakdown natively in DB
+    const categoryTotalsRaw = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select('expense.category', 'category')
+      .addSelect('SUM(expense.amount)', 'amount')
+      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .groupBy('expense.category')
+      .getRawMany();
 
-    const categoryTotals: { [key: string]: number } = {};
-    allExpensesRaw.forEach((item) => {
-      const cat = item.category || 'Others';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(item.amount);
+    const categoryTotals: Record<string, number> = {};
+    categoryTotalsRaw.forEach(row => {
+      const cat = row.category || 'Others';
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(row.amount);
     });
 
     const categoryBreakdown = Object.keys(categoryTotals).map((cat) => ({
       category: cat,
       amount: Number(categoryTotals[cat].toFixed(2)),
-      percentage:
-        totalSpending > 0
-          ? Number(((categoryTotals[cat] / totalSpending) * 100).toFixed(2))
-          : 0,
+      percentage: totalSpending > 0 ? Number(((categoryTotals[cat] / totalSpending) * 100).toFixed(2)) : 0
     }));
 
+    // 4. Calculate timeline totals natively in DB
+    let dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM-DD')`;
+    if (filterType === 'month') {
+      dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM')`;
+    } else if (filterType === 'year') {
+      dateGroupSql = `TO_CHAR(expense.date, 'YYYY')`;
+    }
+
+    const timelineTotalsRaw = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select(`${dateGroupSql}`, 'period')
+      .addSelect('SUM(expense.amount)', 'amount')
+      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .groupBy(`${dateGroupSql}`)
+      .getRawMany();
+
     const timelineTotals: { [key: string]: number } = {};
-    allExpensesRaw.forEach((item) => {
-      let key = item.date;
-      if (filterType === 'month') {
-        key = item.date.substring(0, 7);
-      } else if (filterType === 'year') {
-        key = item.date.substring(0, 4);
-      }
-      timelineTotals[key] = (timelineTotals[key] || 0) + Number(item.amount);
+    timelineTotalsRaw.forEach((row) => {
+      timelineTotals[row.period] = Number(row.amount);
     });
 
     const timelineData: { period: string; amount: number }[] = [];
@@ -201,13 +213,19 @@ export class AnalyticsService {
     const { sum: incomeSum } = await this.incomeRepository
       .createQueryBuilder('income')
       .select('SUM(income.amount)', 'sum')
-      .where('income.userId = :userId AND income.date BETWEEN :start AND :end', { userId, start: startOfMonth, end: endOfMonth })
+      .where(
+        'income.userId = :userId AND income.date BETWEEN :start AND :end',
+        { userId, start: startOfMonth, end: endOfMonth },
+      )
       .getRawOne();
 
     const { sum: expenseSum } = await this.expenseRepository
       .createQueryBuilder('expense')
       .select('SUM(expense.amount)', 'sum')
-      .where('expense.userId = :userId AND expense.date BETWEEN :start AND :end', { userId, start: startOfMonth, end: endOfMonth })
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :start AND :end',
+        { userId, start: startOfMonth, end: endOfMonth },
+      )
       .getRawOne();
 
     const { sum: loansSum, count: loansCount } = await this.loanRepository
@@ -217,12 +235,15 @@ export class AnalyticsService {
       .where('loan.userId = :userId AND loan.isSettled = false', { userId })
       .getRawOne();
 
-    const { sum: borrowingsSum, count: borrowingsCount } = await this.borrowingRepository
-      .createQueryBuilder('borrowing')
-      .select('SUM(borrowing.amount)', 'sum')
-      .addSelect('COUNT(borrowing.id)', 'count')
-      .where('borrowing.userId = :userId AND borrowing.isSettled = false', { userId })
-      .getRawOne();
+    const { sum: borrowingsSum, count: borrowingsCount } =
+      await this.borrowingRepository
+        .createQueryBuilder('borrowing')
+        .select('SUM(borrowing.amount)', 'sum')
+        .addSelect('COUNT(borrowing.id)', 'count')
+        .where('borrowing.userId = :userId AND borrowing.isSettled = false', {
+          userId,
+        })
+        .getRawOne();
 
     return {
       periodIncome: Number(incomeSum || 0),
@@ -235,7 +256,14 @@ export class AnalyticsService {
   }
 
   async getActivity(
-    query: { page?: string; limit?: string; fromDate?: string; toDate?: string; kind?: string; assetId?: string },
+    query: {
+      page?: string;
+      limit?: string;
+      fromDate?: string;
+      toDate?: string;
+      kind?: string;
+      assetId?: string;
+    },
     userId: string,
   ) {
     const page = parseInt(query.page || '1', 10);
@@ -251,7 +279,7 @@ export class AnalyticsService {
       dateFilter = `AND date >= $${paramIndex++} AND date <= $${paramIndex++}`;
       params.push(query.fromDate, query.toDate);
     }
-    
+
     if (query.assetId) {
       assetFilter = ` AND "assetId" = $${paramIndex++}`;
       params.push(query.assetId);
@@ -267,7 +295,7 @@ export class AnalyticsService {
 
     const incomeSql = `SELECT id, 'credit' as kind, source as title, description, amount, date, "assetId", "createdAt" FROM income WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
     const expenseSql = `SELECT id, 'debit' as kind, title, description, amount, date, "assetId", "createdAt" FROM expenses WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
-    
+
     let baseSql = '';
     if (includeIncome && includeExpense) {
       baseSql = `${incomeSql} UNION ALL ${expenseSql}`;
@@ -285,7 +313,7 @@ export class AnalyticsService {
 
     const incomeCount = `SELECT COUNT(*) as cnt FROM income WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
     const expenseCount = `SELECT COUNT(*) as cnt FROM expenses WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
-    
+
     let countBase = '';
     if (includeIncome && includeExpense) {
       countBase = `${incomeCount} UNION ALL ${expenseCount}`;
@@ -297,7 +325,11 @@ export class AnalyticsService {
 
     const countSql = `SELECT SUM(cnt) as total FROM ( ${countBase} ) as counts`;
 
-    const rawData = await this.expenseRepository.query(sql, [...params, limit, offset]);
+    const rawData = await this.expenseRepository.query(sql, [
+      ...params,
+      limit,
+      offset,
+    ]);
     const countResult = await this.expenseRepository.query(countSql, params);
     const totalCount = parseInt(countResult[0]?.total || '0', 10);
 
@@ -306,11 +338,14 @@ export class AnalyticsService {
     const assetIds = [...new Set(rawData.map((r: any) => r.assetId))];
     let assetsMap: Record<string, any> = {};
     if (assetIds.length > 0) {
-      // we can't easily inject AssetsService here if it causes circular deps, 
+      // we can't easily inject AssetsService here if it causes circular deps,
       // but we can just query the assets table
-      const assets = await this.expenseRepository.query(`
+      const assets = await this.expenseRepository.query(
+        `
         SELECT id, name, type FROM assets WHERE id = ANY($1)
-      `, [assetIds]);
+      `,
+        [assetIds],
+      );
       assetsMap = assets.reduce((acc: any, asset: any) => {
         acc[asset.id] = asset;
         return acc;
@@ -336,7 +371,7 @@ export class AnalyticsService {
         page,
         limit,
         totalPages: Math.ceil(totalCount / limit),
-      }
+      },
     };
   }
 
@@ -385,23 +420,25 @@ export class AnalyticsService {
       endDate = toDate ? `${toDate}-12-31` : `${currentYear}-12-31`;
     }
 
-    // Fetch all expenses in target range scoped to user
-    const expenses = await this.expenseRepository.find({
-      where: {
-        date: Between(startDate, endDate),
-        user: { id: userId },
-      },
-    });
+    // Calculate timeline totals natively in DB
+    let dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM-DD')`;
+    if (type === 'month') {
+      dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM')`;
+    } else if (type === 'year') {
+      dateGroupSql = `TO_CHAR(expense.date, 'YYYY')`;
+    }
+
+    const timelineTotalsRaw = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select(`${dateGroupSql}`, 'period')
+      .addSelect('SUM(expense.amount)', 'amount')
+      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .groupBy(`${dateGroupSql}`)
+      .getRawMany();
 
     const timelineTotals: { [key: string]: number } = {};
-    expenses.forEach((item) => {
-      let key = item.date;
-      if (type === 'month') {
-        key = item.date.substring(0, 7);
-      } else if (type === 'year') {
-        key = item.date.substring(0, 4);
-      }
-      timelineTotals[key] = (timelineTotals[key] || 0) + Number(item.amount);
+    timelineTotalsRaw.forEach((row) => {
+      timelineTotals[row.period] = Number(row.amount);
     });
 
     const periodData: { period: string; amount: number }[] = [];

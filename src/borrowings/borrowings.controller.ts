@@ -28,11 +28,15 @@ export class BorrowingsController {
   }
 
   @Get()
-  findAll(@Query('page') page: string, @Query('limit') limit: string, @Request() req) {
+  findAll(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Request() req,
+  ) {
     return this.borrowingsService.findAll(
       req.user.id,
       page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 10
+      limit ? parseInt(limit, 10) : 10,
     );
   }
 

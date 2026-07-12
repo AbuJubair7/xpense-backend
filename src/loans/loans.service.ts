@@ -16,12 +16,16 @@ export class LoansService {
     const loan = this.loanRepository.create({
       ...createLoanDto,
       isSettled: false,
-      user: { id: userId } as any,
+      user: { id: userId },
     });
     return this.loanRepository.save(loan);
   }
 
-  async findAll(userId: string, page: number = 1, limit: number = 10): Promise<{ data: Loan[]; pagination: any }> {
+  async findAll(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ data: Loan[]; pagination: any }> {
     const skip = (page - 1) * limit;
     const [data, total] = await this.loanRepository.findAndCount({
       where: { user: { id: userId } },

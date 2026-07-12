@@ -25,8 +25,8 @@ export class ExpensesService {
     // Create expense record mapped to current user and source asset
     const expense = this.expenseRepository.create({
       ...expenseData,
-      user: { id: userId } as any,
-      asset: { id: assetId } as any,
+      user: { id: userId },
+      asset: { id: assetId },
     });
     const savedExpense = await this.expenseRepository.save(expense);
 
