@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, RequestMethod } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -9,8 +9,10 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
-  // Set global API prefix
-  app.setGlobalPrefix('api');
+  // Set global API prefix but exclude the root route
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
 
   // Swagger Configuration
   const config = new DocumentBuilder()
