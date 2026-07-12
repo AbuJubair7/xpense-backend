@@ -51,17 +51,18 @@ export class AuthService {
     };
   }
 
-  async googleLogin(credential: string) {
-    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  async googleLogin(accessToken: string) {
     let payload;
     try {
-      const ticket = await client.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
-      payload = ticket.getPayload();
+      if (!response.ok) {
+        throw new Error('Failed to fetch user info');
+      }
+      payload = await response.json();
     } catch (e) {
-      throw new UnauthorizedException('Invalid Google token');
+      throw new UnauthorizedException('Invalid Google access token');
     }
 
     if (!payload || !payload.email) {
