@@ -15,7 +15,7 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { loadMcpTools } from '@langchain/mcp-adapters';
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 
 @Injectable()
 export class AiService {
