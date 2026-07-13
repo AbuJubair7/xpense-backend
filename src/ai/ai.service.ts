@@ -33,8 +33,8 @@ export class AiService {
     checkCancelled: () => boolean,
   ) {
     // 1. Validate environment early
-    if (!process.env.NVIDIA_API_KEY) {
-      throw new Error('NVIDIA_API_KEY environment variable is required');
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY environment variable is required');
     }
 
     // 2. Load the last 6 messages for chat history
@@ -97,10 +97,10 @@ export class AiService {
       ]);
 
       const model = new ChatOpenAI({
-        model: process.env.NVIDIA_MODEL_NAME || 'deepseek-ai/deepseek-r1',
-        apiKey: process.env.NVIDIA_API_KEY,
+        modelName: process.env.OPENROUTER_MODEL_NAME || 'meta-llama/llama-3-8b-instruct:free',
+        openAIApiKey: process.env.OPENROUTER_API_KEY || '',
         configuration: {
-          baseURL: 'https://integrate.api.nvidia.com/v1',
+          baseURL: 'https://openrouter.ai/api/v1',
         },
       });
 
