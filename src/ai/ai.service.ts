@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOpenAI } from '@langchain/openai';
 import {
   createToolCallingAgent,
   AgentExecutor,
@@ -33,8 +33,8 @@ export class AiService {
     checkCancelled: () => boolean,
   ) {
     // 1. Validate environment early
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY environment variable is required');
+    if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
+      throw new Error('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables are required');
     }
 
     // 2. Load the last 6 messages for chat history
@@ -96,9 +96,12 @@ export class AiService {
         new MessagesPlaceholder('agent_scratchpad'),
       ]);
 
-      const model = new ChatGoogleGenerativeAI({
-        model: process.env.GEMINI_MODEL_NAME || 'gemini-2.5-flash',
-        apiKey: process.env.GEMINI_API_KEY || '',
+      const model = new ChatOpenAI({
+        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.1-8b-instruct',
+        apiKey: process.env.CLOUDFLARE_API_TOKEN || '',
+        configuration: {
+          baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
+        },
       });
 
       const agent = await createToolCallingAgent({ llm: model, tools, prompt });
