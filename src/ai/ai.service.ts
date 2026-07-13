@@ -33,8 +33,13 @@ export class AiService {
     checkCancelled: () => boolean,
   ) {
     // 1. Validate environment early
-    if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
-      throw new Error('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables are required');
+    if (
+      !process.env.CLOUDFLARE_API_TOKEN ||
+      !process.env.CLOUDFLARE_ACCOUNT_ID
+    ) {
+      throw new Error(
+        'CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables are required',
+      );
     }
 
     // 2. Load the last 6 messages for chat history
@@ -97,7 +102,7 @@ export class AiService {
       ]);
 
       const model = new ChatOpenAI({
-        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.1-8b-instruct',
+        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-4-scout-17b-16e-instruct',
         apiKey: process.env.CLOUDFLARE_API_TOKEN || '',
         configuration: {
           baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
