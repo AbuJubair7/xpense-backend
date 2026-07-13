@@ -97,7 +97,7 @@ export class AiService {
       ]);
 
       const model = new ChatGoogleGenerativeAI({
-        model: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-flash-latest',
         apiKey: process.env.GEMINI_API_KEY || '',
       });
 
@@ -122,7 +122,10 @@ export class AiService {
           this.logger.log(`[Tool Used]: ${event.name}`);
         }
 
-        if (event.event === 'on_chat_model_stream' && event.data.chunk?.content) {
+        if (
+          event.event === 'on_chat_model_stream' &&
+          event.data.chunk?.content
+        ) {
           const word = event.data.chunk.content;
           streamedResponse += word;
           onWord(word); // Send token to client
@@ -136,7 +139,6 @@ export class AiService {
         user: { id: userId },
       });
       await this.chatMessageRepository.save(newAiMsg);
-
     } finally {
       // Close the HTTP connection gracefully when done
       await client.close();
