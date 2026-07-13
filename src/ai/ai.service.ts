@@ -116,7 +116,9 @@ export class AiService {
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
-          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely. IMPORTANT: At the very end of every response you give, you MUST provide exactly one related follow-up question the user could ask you next, formatted exactly like this: <suggestion>Question text here</suggestion>",
+          `You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.
+Current Local Time: ${new Date().toLocaleString()} (Use this to resolve relative date queries like 'this month', 'today', 'yesterday' correctly).
+IMPORTANT: At the very end of every response you give, you MUST provide exactly one related follow-up question the user could ask you next, formatted exactly like this: <suggestion>Question text here</suggestion>`,
         ],
         new MessagesPlaceholder('chat_history'),
         ['human', '{input}'],
@@ -149,7 +151,11 @@ export class AiService {
         if (checkCancelled()) break;
 
         if (event.event === 'on_tool_start') {
-          this.logger.log(`[Tool Used]: ${event.name}`);
+          this.logger.log(`[Tool Used]: ${event.name} with input: ${JSON.stringify(event.data.input)}`);
+        }
+
+        if (event.event === 'on_tool_end') {
+          this.logger.log(`[Tool Finished]: ${event.name} with output: ${JSON.stringify(event.data.output)}`);
         }
 
         if (
@@ -157,6 +163,7 @@ export class AiService {
           event.data.chunk?.content
         ) {
           const content = event.data.chunk.content;
+          this.logger.debug(`[Stream Chunk]: ${JSON.stringify(content)}`);
           
           if (typeof content === 'string') {
             streamedResponse += content;
