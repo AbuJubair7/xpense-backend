@@ -88,7 +88,29 @@ export class AiService {
 
     try {
       // Convert standard MCP tools into LangChain tools dynamically
-      const tools = await loadMcpTools('xpense-mcp', client);
+      const rawTools = await loadMcpTools('xpense-mcp', client);
+      const tools = rawTools.map((tool) => {
+        const sanitize = (arg: any) => {
+          if (arg && typeof arg === 'object') {
+            const sanitized = { ...arg };
+            for (const key of Object.keys(sanitized)) {
+              if (sanitized[key] === null) {
+                delete sanitized[key];
+              }
+            }
+            return sanitized;
+          }
+          return arg;
+        };
+
+        const originalCall = tool.call.bind(tool);
+        tool.call = (arg: any, config: any) => originalCall(sanitize(arg), config);
+
+        const originalInvoke = tool.invoke.bind(tool);
+        tool.invoke = (arg: any, config: any) => originalInvoke(sanitize(arg), config);
+
+        return tool;
+      });
 
       // 4. Define the Agent
       const prompt = ChatPromptTemplate.fromMessages([
@@ -102,7 +124,7 @@ export class AiService {
       ]);
 
       const model = new ChatOpenAI({
-        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.1-8b-instruct-fast',
         apiKey: process.env.CLOUDFLARE_API_TOKEN || '',
         configuration: {
           baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
