@@ -91,10 +91,12 @@ export class AiService {
           'system',
           "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.\n\n" +
           "CRITICAL UI REQUIREMENT:\n" +
-          "At the very end of every single response, you MUST output a related follow-up question wrapped EXACTLY in <suggestion> tags. This is required for the frontend UI to parse it correctly as a clickable button. Do not forget the tags! The question should be phrased from the user's perspective.\n\n" +
+          "You must separate your final chat response from your suggested follow-up question using the exact text delimiter: ---SUGGESTION---\n" +
+          "Everything after this delimiter will be converted into a clickable button. The question MUST be phrased from the user's perspective.\n\n" +
           "Example of a valid ending:\n" +
           "Here is your data.\n" +
-          "<suggestion>What did I spend on food this month?</suggestion>",
+          "---SUGGESTION---\n" +
+          "What did I spend on food this month?",
         ],
         new MessagesPlaceholder('chat_history'),
         ['human', '{input}'],
