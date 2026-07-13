@@ -1,7 +1,12 @@
-import { Injectable, Logger, OnModuleInit, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
-import { Cron } from '@nestjs/schedule';
+import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ChatOpenAI } from '@langchain/openai';
 import {
@@ -69,11 +74,11 @@ Context:
 Today's Date: {current_date}
 Timezone: Asia/Dhaka
 Currency: BDT
-Locale: en-BD`
+Locale: en-BD`,
       ],
       new MessagesPlaceholder('chat_history'),
       [
-        'human', 
+        'human',
         `{input}
 
 [CRITICAL INSTRUCTION: End your response with '---SUGGESTION---' on a new line, followed by exactly one first-person follow-up prompt. 
@@ -81,32 +86,20 @@ The suggestion must:
 - Start with a verb (e.g. "Show me...", "Calculate...")
 - Be under 15 words
 - Contain no quotation marks or markdown
-- Be written exactly as I (the user) would type it.]`
+- Be written exactly as I (the user) would type it.]`,
       ],
       new MessagesPlaceholder('agent_scratchpad'),
     ]);
   }
 
-  @Cron('0 0 * * *')
-  async handleCron() {
-    this.logger.log('Running nightly chat cleanup job...');
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    try {
-      const result = await this.chatMessageRepository.delete({
-        createdAt: LessThan(thirtyDaysAgo),
-      });
-      this.logger.log(`Deleted ${result.affected} old chat messages.`);
-    } catch (error) {
-      this.logger.error('Failed to clean up old chat messages', error);
-    }
-  }
-
   async clearUserChat(userId: string) {
     try {
-      const result = await this.chatMessageRepository.delete({ user: { id: userId } });
-      this.logger.log(`Manually cleared ${result.affected} messages for user ${userId}.`);
+      const result = await this.chatMessageRepository.delete({
+        user: { id: userId },
+      });
+      this.logger.log(
+        `Manually cleared ${result.affected} messages for user ${userId}.`,
+      );
     } catch (error) {
       this.logger.error(`Failed to clear chat for user ${userId}`, error);
       throw new InternalServerErrorException('Could not clear chat history');
@@ -147,7 +140,8 @@ The suggestion must:
     chatHistory.push(new HumanMessage(message));
 
     // 3. Connect to MCP Server via StreamableHTTPClientTransport
-    const mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp';
+    const mcpServerUrl =
+      process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp';
     const mcpUrl = new URL(mcpServerUrl);
     const transport = new StreamableHTTPClientTransport(mcpUrl, {
       requestInit: {
@@ -170,7 +164,11 @@ The suggestion must:
     try {
       // 4. Load Tools
       const tools = await loadMcpTools('xpense-mcp', client);
-      const agent = await createToolCallingAgent({ llm: this.model, tools, prompt: this.prompt });
+      const agent = await createToolCallingAgent({
+        llm: this.model,
+        tools,
+        prompt: this.prompt,
+      });
       const executor = new AgentExecutor({ agent, tools });
 
       const controller = new AbortController();
@@ -182,9 +180,9 @@ The suggestion must:
           chat_history: chatHistory,
           current_date: new Date().toISOString().split('T')[0],
         },
-        { 
+        {
           version: 'v2',
-          signal: controller.signal 
+          signal: controller.signal,
         },
       );
 
@@ -198,11 +196,17 @@ The suggestion must:
           }
 
           if (event.event === 'on_tool_start') {
-            this.logger.log(chalk.cyan(`🛠  [Tool Started]: `) + chalk.cyanBright.bold(event.name));
+            this.logger.log(
+              chalk.cyan(`🛠  [Tool Started]: `) +
+                chalk.cyanBright.bold(event.name),
+            );
           }
-          
+
           if (event.event === 'on_tool_end') {
-            this.logger.log(chalk.green(`✅ [Tool Completed]: `) + chalk.greenBright(event.name));
+            this.logger.log(
+              chalk.green(`✅ [Tool Completed]: `) +
+                chalk.greenBright(event.name),
+            );
           }
 
           if (
