@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
-import { ChatGroq } from '@langchain/groq';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import {
   createToolCallingAgent,
   AgentExecutor,
@@ -33,8 +33,8 @@ export class AiService {
     checkCancelled: () => boolean,
   ) {
     // 1. Validate environment early
-    if (!process.env.GROQ_API_KEY) {
-      throw new Error('GROQ_API_KEY environment variable is required');
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is required');
     }
 
     // 2. Load the last 6 messages for chat history
@@ -96,9 +96,9 @@ export class AiService {
         new MessagesPlaceholder('agent_scratchpad'),
       ]);
 
-      const model = new ChatGroq({
-        model: process.env.GROQ_MODEL_NAME || 'gemma2-9b-it',
-        apiKey: process.env.GROQ_API_KEY || '',
+      const model = new ChatGoogleGenerativeAI({
+        model: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-flash',
+        apiKey: process.env.GEMINI_API_KEY || '',
       });
 
       const agent = await createToolCallingAgent({ llm: model, tools, prompt });
