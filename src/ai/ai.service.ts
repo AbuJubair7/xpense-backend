@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatOpenAI, ChatOpenAICompletions } from '@langchain/openai';
 import {
   createToolCallingAgent,
   AgentExecutor,
@@ -15,6 +15,30 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { loadMcpTools } from '@langchain/mcp-adapters';
+
+// Monkey-patch ChatOpenAICompletions to prevent it from discarding non-string delta content (like numbers or arrays) from Cloudflare Workers AI.
+const originalConvert = ChatOpenAICompletions.prototype['_convertCompletionsDeltaToBaseMessageChunk'];
+if (originalConvert) {
+  ChatOpenAICompletions.prototype['_convertCompletionsDeltaToBaseMessageChunk'] = function (delta: any, rawResponse: any, defaultRole: any) {
+    const chunk = originalConvert.call(this, delta, rawResponse, defaultRole);
+    if (chunk && chunk.content !== undefined && typeof chunk.content !== 'string') {
+      if (Array.isArray(chunk.content)) {
+        let text = '';
+        for (const part of chunk.content) {
+          if (typeof part === 'string') {
+            text += part;
+          } else if (part && typeof part === 'object' && part.type === 'text' && part.text) {
+            text += part.text;
+          }
+        }
+        chunk.content = text;
+      } else {
+        chunk.content = String(chunk.content);
+      }
+    }
+    return chunk;
+  };
+}
 
 @Injectable()
 export class AiService {
