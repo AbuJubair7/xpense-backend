@@ -85,21 +85,16 @@ export class AiService {
       // Convert standard MCP tools into LangChain tools dynamically
       const tools = await loadMcpTools('xpense-mcp', client);
 
-      // 4. Define the Agent
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
-          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.\n\n" +
-          "CRITICAL UI REQUIREMENT:\n" +
-          "You must separate your final chat response from your suggested follow-up question using the exact text delimiter: ---SUGGESTION---\n" +
-          "Everything after this delimiter will be converted into a clickable button. The question MUST be phrased from the user's perspective.\n\n" +
-          "Example of a valid ending:\n" +
-          "Here is your data.\n" +
-          "---SUGGESTION---\n" +
-          "What did I spend on food this month?",
+          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.",
         ],
         new MessagesPlaceholder('chat_history'),
-        ['human', '{input}'],
+        [
+          'human', 
+          "{input}\n\n[CRITICAL SYSTEM REQUIREMENT: You MUST end your final response by writing '---SUGGESTION---' on a new line, followed immediately by exactly one contextual follow-up question phrased from my (the user's) perspective. Example:\n---SUGGESTION---\nWhat did I spend on food?]"
+        ],
         new MessagesPlaceholder('agent_scratchpad'),
       ]);
 
