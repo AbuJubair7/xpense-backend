@@ -98,7 +98,7 @@ export class AiService {
 
       const model = new ChatOpenAI({
         modelName: process.env.OPENROUTER_MODEL_NAME || 'meta-llama/llama-3-8b-instruct:free',
-        openAIApiKey: process.env.OPENROUTER_API_KEY || '',
+        apiKey: process.env.OPENROUTER_API_KEY || '',
         configuration: {
           baseURL: 'https://openrouter.ai/api/v1',
         },
