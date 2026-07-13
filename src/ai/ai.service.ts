@@ -102,7 +102,7 @@ export class AiService {
       ]);
 
       const model = new ChatOpenAI({
-        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-4-scout-17b-16e-instruct',
+        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         apiKey: process.env.CLOUDFLARE_API_TOKEN || '',
         configuration: {
           baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
@@ -134,9 +134,19 @@ export class AiService {
           event.event === 'on_chat_model_stream' &&
           event.data.chunk?.content
         ) {
-          const word = event.data.chunk.content;
-          streamedResponse += word;
-          onWord(word); // Send token to client
+          const content = event.data.chunk.content;
+          
+          if (typeof content === 'string') {
+            streamedResponse += content;
+            onWord(content);
+          } else if (Array.isArray(content)) {
+            for (const part of content) {
+              if (part.type === 'text' && part.text) {
+                streamedResponse += part.text;
+                onWord(part.text);
+              }
+            }
+          }
         }
       }
 
