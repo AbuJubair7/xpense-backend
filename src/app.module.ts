@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -17,18 +16,11 @@ import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('SUPABASE_CONNECTION_STRING'),
-        autoLoadEntities: true,
-        synchronize: configService.get<string>('DB_SYNCHRONIZE') !== 'false',
-      }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      url: process.env.SUPABASE_CONNECTION_STRING,
+      autoLoadEntities: true,
+      synchronize: process.env.DB_SYNCHRONIZE !== 'false',
     }),
     UsersModule,
     AuthModule,

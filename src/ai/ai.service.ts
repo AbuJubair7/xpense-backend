@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ChatOpenAI } from '@langchain/openai';
 import {
@@ -27,17 +26,16 @@ export class AiService implements OnModuleInit {
   constructor(
     @InjectRepository(ChatMessage)
     private readonly chatMessageRepository: Repository<ChatMessage>,
-    private readonly configService: ConfigService,
   ) {}
 
   onModuleInit() {
-    const apiKey = this.configService.get<string>('OPENROUTER_API_KEY');
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       this.logger.error('OPENROUTER_API_KEY environment variable is required');
     }
 
     this.model = new ChatOpenAI({
-      modelName: this.configService.get<string>('OPENROUTER_MODEL_NAME') || 'openrouter/free',
+      modelName: process.env.OPENROUTER_MODEL_NAME || 'openrouter/free',
       apiKey: apiKey || '',
       configuration: {
         baseURL: 'https://openrouter.ai/api/v1',
@@ -95,7 +93,7 @@ The suggestion must:
     onWord: (word: string) => void,
     checkCancelled: () => boolean,
   ) {
-    if (!this.configService.get<string>('OPENROUTER_API_KEY')) {
+    if (!process.env.OPENROUTER_API_KEY) {
       throw new InternalServerErrorException('AI Service is misconfigured');
     }
 
@@ -122,7 +120,7 @@ The suggestion must:
     chatHistory.push(new HumanMessage(message));
 
     // 3. Connect to MCP Server via StreamableHTTPClientTransport
-    const mcpServerUrl = this.configService.get<string>('MCP_SERVER_URL') || 'http://localhost:8080/mcp';
+    const mcpServerUrl = process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp';
     const mcpUrl = new URL(mcpServerUrl);
     const transport = new StreamableHTTPClientTransport(mcpUrl, {
       requestInit: {
