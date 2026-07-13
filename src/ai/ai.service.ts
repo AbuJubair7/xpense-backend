@@ -97,7 +97,7 @@ export class AiService {
       ]);
 
       const model = new ChatGoogleGenerativeAI({
-        model: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-flash-latest',
+        model: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-pro',
         apiKey: process.env.GEMINI_API_KEY || '',
       });
 
