@@ -88,7 +88,7 @@ export class AiService {
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
-          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.",
+          `You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.\n\nToday's date is: ${new Date().toISOString().split('T')[0]}.`,
         ],
         new MessagesPlaceholder('chat_history'),
         [
@@ -125,6 +125,12 @@ export class AiService {
 
         if (event.event === 'on_tool_start') {
           this.logger.log(`[Tool Used]: ${event.name}`);
+        }
+        
+        if (event.event === 'on_tool_end') {
+          // Log a truncated version of the output to avoid console flooding on huge queries
+          const outStr = JSON.stringify(event.data.output);
+          this.logger.log(`[Tool Output]: ${outStr.substring(0, 500)}${outStr.length > 500 ? '... [TRUNCATED]' : ''}`);
         }
 
         if (
