@@ -15,6 +15,7 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { loadMcpTools } from '@langchain/mcp-adapters';
+import * as chalk from 'chalk';
 
 @Injectable()
 export class AiService {
@@ -124,13 +125,14 @@ export class AiService {
         if (checkCancelled()) break;
 
         if (event.event === 'on_tool_start') {
-          this.logger.log(`[Tool Used]: ${event.name}`);
+          this.logger.log(chalk.cyan(`🛠  [Tool Started]: `) + chalk.cyanBright.bold(event.name));
         }
         
         if (event.event === 'on_tool_end') {
           // Log a truncated version of the output to avoid console flooding on huge queries
-          const outStr = JSON.stringify(event.data.output);
-          this.logger.log(`[Tool Output]: ${outStr.substring(0, 500)}${outStr.length > 500 ? '... [TRUNCATED]' : ''}`);
+          const outStr = JSON.stringify(event.data.output, null, 2);
+          const truncated = outStr.length > 800 ? outStr.substring(0, 800) + '\n... [TRUNCATED]' : outStr;
+          this.logger.log(chalk.green(`✅ [Tool Output from ${event.name}]:\n`) + chalk.gray(truncated));
         }
 
         if (
