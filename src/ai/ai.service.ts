@@ -93,7 +93,7 @@ export class AiService {
         new MessagesPlaceholder('chat_history'),
         [
           'human', 
-          "{input}\n\n[CRITICAL SYSTEM REQUIREMENT: You MUST end your final response by writing '---SUGGESTION---' on a new line, followed immediately by exactly one contextual follow-up question phrased from my (the user's) perspective. Example:\n---SUGGESTION---\nWhat did I spend on food?]"
+          "{input}\n\n[CRITICAL INSTRUCTION: End your response with '---SUGGESTION---' on a new line, followed by a single suggested follow-up prompt. The suggestion MUST be written strictly from MY point of view as the user (use 'I' or 'my'). Do NOT ask me a question like 'Would you like to see...?'. Instead, provide the exact text I would type to you next, such as 'Show me my expenses for last week.']"
         ],
         new MessagesPlaceholder('agent_scratchpad'),
       ]);
