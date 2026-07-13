@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
+import { Cron } from '@nestjs/schedule';
 import { ChatMessage } from './entities/chat-message.entity';
 import { ChatOpenAI } from '@langchain/openai';
 import {
@@ -84,6 +85,32 @@ The suggestion must:
       ],
       new MessagesPlaceholder('agent_scratchpad'),
     ]);
+  }
+
+  @Cron('0 0 * * *')
+  async handleCron() {
+    this.logger.log('Running nightly chat cleanup job...');
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    try {
+      const result = await this.chatMessageRepository.delete({
+        createdAt: LessThan(thirtyDaysAgo),
+      });
+      this.logger.log(`Deleted ${result.affected} old chat messages.`);
+    } catch (error) {
+      this.logger.error('Failed to clean up old chat messages', error);
+    }
+  }
+
+  async clearUserChat(userId: string) {
+    try {
+      const result = await this.chatMessageRepository.delete({ user: { id: userId } });
+      this.logger.log(`Manually cleared ${result.affected} messages for user ${userId}.`);
+    } catch (error) {
+      this.logger.error(`Failed to clear chat for user ${userId}`, error);
+      throw new InternalServerErrorException('Could not clear chat history');
+    }
   }
 
   public async getChatResponse(

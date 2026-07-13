@@ -5,6 +5,7 @@ import {
   UseGuards,
   Request,
   Res,
+  Delete,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AiService } from './ai.service';
@@ -50,5 +51,11 @@ export class AiController {
     );
 
     res.end(); // Close the stream when the agent is done
+  }
+
+  @Delete('chat')
+  async clearChat(@Request() req, @Res() res: Response) {
+    await this.aiService.clearUserChat(req.user.id);
+    res.status(200).send({ message: 'Chat history cleared' });
   }
 }
