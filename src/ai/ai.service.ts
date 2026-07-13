@@ -32,7 +32,12 @@ export class AiService {
     onWord: (word: string) => void,
     checkCancelled: () => boolean,
   ) {
-    // 1. Load the last 6 messages for chat history
+    // 1. Validate environment early
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY environment variable is required');
+    }
+
+    // 2. Load the last 6 messages for chat history
     const history = await this.chatMessageRepository.find({
       where: { user: { id: userId } },
       order: { createdAt: 'ASC' },
@@ -54,7 +59,7 @@ export class AiService {
     await this.chatMessageRepository.save(newHumanMsg);
     chatHistory.push(new HumanMessage(message));
 
-    // 2. Connect to MCP Server via StreamableHTTPClientTransport and inject the token via Headers
+    // 3. Connect to MCP Server via StreamableHTTPClientTransport and inject the token via Headers
     const mcpUrl = new URL(
       process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp',
     );
@@ -68,64 +73,73 @@ export class AiService {
       { name: 'nestjs-client', version: '1.0.0' },
       { capabilities: {} },
     );
-    await client.connect(transport);
 
-    // Convert standard MCP tools into LangChain tools dynamically
-    const tools = await loadMcpTools('xpense-mcp', client);
-
-    // 3. Define the Agent
-    const prompt = ChatPromptTemplate.fromMessages([
-      [
-        'system',
-        "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.",
-      ],
-      new MessagesPlaceholder('chat_history'),
-      ['human', '{input}'],
-      new MessagesPlaceholder('agent_scratchpad'),
-    ]);
-
-    const model = new ChatGroq({
-      model: process.env.GROQ_MODEL_NAME || 'llama-3.1-8b-instant',
-      apiKey: process.env.GROQ_API_KEY || '',
-    });
-
-    const agent = await createToolCallingAgent({ llm: model, tools, prompt });
-    const executor = new AgentExecutor({ agent, tools });
-
-    // 4. Stream response
-    const eventStream = await executor.streamEvents(
-      {
-        input: message,
-        chat_history: chatHistory,
-      },
-      { version: 'v2' },
-    );
-
-    let streamedResponse = '';
-
-    for await (const event of eventStream) {
-      if (checkCancelled()) break;
-
-      if (event.event === 'on_tool_start') {
-        this.logger.log(`[Tool Used]: ${event.name}`);
-      }
-
-      if (event.event === 'on_chat_model_stream' && event.data.chunk?.content) {
-        const word = event.data.chunk.content;
-        streamedResponse += word;
-        onWord(word); // Send token to client
-      }
+    try {
+      await client.connect(transport);
+    } catch (error) {
+      this.logger.error('Failed to connect to MCP server', error);
+      throw new Error('Service unavailable: MCP server unreachable');
     }
 
-    // Close the HTTP connection gracefully when done
-    await client.close();
+    try {
+      // Convert standard MCP tools into LangChain tools dynamically
+      const tools = await loadMcpTools('xpense-mcp', client);
 
-    // 5. Save the assistant's response to the DB
-    const newAiMsg = this.chatMessageRepository.create({
-      role: 'assistant',
-      content: streamedResponse,
-      user: { id: userId },
-    });
-    await this.chatMessageRepository.save(newAiMsg);
+      // 4. Define the Agent
+      const prompt = ChatPromptTemplate.fromMessages([
+        [
+          'system',
+          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.",
+        ],
+        new MessagesPlaceholder('chat_history'),
+        ['human', '{input}'],
+        new MessagesPlaceholder('agent_scratchpad'),
+      ]);
+
+      const model = new ChatGroq({
+        model: process.env.GROQ_MODEL_NAME || 'llama-3.1-8b-instant',
+        apiKey: process.env.GROQ_API_KEY || '',
+      });
+
+      const agent = await createToolCallingAgent({ llm: model, tools, prompt });
+      const executor = new AgentExecutor({ agent, tools });
+
+      // 5. Stream response
+      const eventStream = await executor.streamEvents(
+        {
+          input: message,
+          chat_history: chatHistory,
+        },
+        { version: 'v2' },
+      );
+
+      let streamedResponse = '';
+
+      for await (const event of eventStream) {
+        if (checkCancelled()) break;
+
+        if (event.event === 'on_tool_start') {
+          this.logger.log(`[Tool Used]: ${event.name}`);
+        }
+
+        if (event.event === 'on_chat_model_stream' && event.data.chunk?.content) {
+          const word = event.data.chunk.content;
+          streamedResponse += word;
+          onWord(word); // Send token to client
+        }
+      }
+
+      // 6. Save the assistant's response to the DB
+      const newAiMsg = this.chatMessageRepository.create({
+        role: 'assistant',
+        content: streamedResponse,
+        user: { id: userId },
+      });
+      await this.chatMessageRepository.save(newAiMsg);
+
+    } finally {
+      // Close the HTTP connection gracefully when done
+      await client.close();
+    }
   }
 }

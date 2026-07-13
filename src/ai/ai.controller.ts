@@ -10,6 +10,8 @@ import type { Response } from 'express';
 import { AiService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+import { ChatMessageDto } from './dto/chat-message.dto';
+
 @UseGuards(JwtAuthGuard)
 @Controller('ai')
 export class AiController {
@@ -18,9 +20,10 @@ export class AiController {
   @Post('chat')
   async chat(
     @Request() req,
-    @Body('message') message: string,
+    @Body() dto: ChatMessageDto,
     @Res() res: Response,
   ) {
+    const message = dto.message;
     // Extract the raw JWT token from the Authorization header to pass to the MCP server
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
