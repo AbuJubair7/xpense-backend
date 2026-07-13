@@ -143,9 +143,13 @@ The suggestion must:
     const mcpServerUrl =
       process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp';
     const mcpUrl = new URL(mcpServerUrl);
+    const mcpApiKey = process.env.MCPIZE_API_KEY;
     const transport = new StreamableHTTPClientTransport(mcpUrl, {
       requestInit: {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          ...(mcpApiKey ? { Authorization: `Bearer ${mcpApiKey}` } : {}),
+          'X-Xpense-Token': `Bearer ${token}` 
+        },
       },
     });
 
