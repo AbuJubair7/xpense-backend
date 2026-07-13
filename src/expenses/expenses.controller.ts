@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -24,8 +25,20 @@ export class ExpensesController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.expensesService.findAll(req.user.id);
+  findAll(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('category') category?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.expensesService.findAll(
+      req.user.id,
+      limit ? parseInt(limit, 10) : undefined,
+      category,
+      startDate,
+      endDate,
+    );
   }
 
   @Get(':id')

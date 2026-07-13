@@ -32,11 +32,11 @@ export class AiService {
     onWord: (word: string) => void,
     checkCancelled: () => boolean,
   ) {
-    // 1. Load the last 20 messages for chat history
+    // 1. Load the last 6 messages for chat history
     const history = await this.chatMessageRepository.find({
       where: { user: { id: userId } },
       order: { createdAt: 'ASC' },
-      take: 20,
+      take: 6,
     });
 
     const chatHistory = history.map((msg) =>
@@ -85,7 +85,7 @@ export class AiService {
     ]);
 
     const model = new ChatGroq({
-      model: process.env.GROQ_MODEL_NAME || 'llama-3.3-70b-versatile',
+      model: process.env.GROQ_MODEL_NAME || 'llama-3.1-8b-instant',
       apiKey: process.env.GROQ_API_KEY || '',
     });
 

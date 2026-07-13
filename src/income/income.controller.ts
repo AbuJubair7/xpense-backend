@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { IncomeService } from './income.service';
 import { CreateIncomeDto } from './dto/create-income.dto';
@@ -24,8 +25,20 @@ export class IncomeController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.incomeService.findAll(req.user.id);
+  findAll(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('source') source?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.incomeService.findAll(
+      req.user.id,
+      limit ? parseInt(limit, 10) : undefined,
+      source,
+      startDate,
+      endDate,
+    );
   }
 
   @Get(':id')
