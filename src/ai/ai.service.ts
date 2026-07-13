@@ -97,7 +97,7 @@ export class AiService {
       ]);
 
       const model = new ChatGroq({
-        model: process.env.GROQ_MODEL_NAME || 'llama-3.1-8b-instant',
+        model: process.env.GROQ_MODEL_NAME || 'mixtral-8x7b-32768',
         apiKey: process.env.GROQ_API_KEY || '',
       });
 
