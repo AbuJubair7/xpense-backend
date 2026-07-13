@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
-import { ChatOpenAI, ChatOpenAICompletions } from '@langchain/openai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import {
   createToolCallingAgent,
   AgentExecutor,
@@ -15,30 +15,6 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { loadMcpTools } from '@langchain/mcp-adapters';
-
-// Monkey-patch ChatOpenAICompletions to prevent it from discarding non-string delta content (like numbers or arrays) from Cloudflare Workers AI.
-const originalConvert = ChatOpenAICompletions.prototype['_convertCompletionsDeltaToBaseMessageChunk'];
-if (originalConvert) {
-  ChatOpenAICompletions.prototype['_convertCompletionsDeltaToBaseMessageChunk'] = function (delta: any, rawResponse: any, defaultRole: any) {
-    const chunk = originalConvert.call(this, delta, rawResponse, defaultRole);
-    if (chunk && chunk.content !== undefined && typeof chunk.content !== 'string') {
-      if (Array.isArray(chunk.content)) {
-        let text = '';
-        for (const part of chunk.content) {
-          if (typeof part === 'string') {
-            text += part;
-          } else if (part && typeof part === 'object' && part.type === 'text' && part.text) {
-            text += part.text;
-          }
-        }
-        chunk.content = text;
-      } else {
-        chunk.content = String(chunk.content);
-      }
-    }
-    return chunk;
-  };
-}
 
 @Injectable()
 export class AiService {
@@ -57,13 +33,8 @@ export class AiService {
     checkCancelled: () => boolean,
   ) {
     // 1. Validate environment early
-    if (
-      !process.env.CLOUDFLARE_API_TOKEN ||
-      !process.env.CLOUDFLARE_ACCOUNT_ID
-    ) {
-      throw new Error(
-        'CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables are required',
-      );
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is required');
     }
 
     // 2. Load the last 6 messages for chat history
@@ -112,49 +83,22 @@ export class AiService {
 
     try {
       // Convert standard MCP tools into LangChain tools dynamically
-      const rawTools = await loadMcpTools('xpense-mcp', client);
-      const tools = rawTools.map((tool) => {
-        const sanitize = (arg: any) => {
-          if (arg && typeof arg === 'object') {
-            const sanitized = { ...arg };
-            for (const key of Object.keys(sanitized)) {
-              if (sanitized[key] === null) {
-                delete sanitized[key];
-              }
-            }
-            return sanitized;
-          }
-          return arg;
-        };
-
-        const originalCall = tool.call.bind(tool);
-        tool.call = (arg: any, config: any) => originalCall(sanitize(arg), config);
-
-        const originalInvoke = tool.invoke.bind(tool);
-        tool.invoke = (arg: any, config: any) => originalInvoke(sanitize(arg), config);
-
-        return tool;
-      });
+      const tools = await loadMcpTools('xpense-mcp', client);
 
       // 4. Define the Agent
       const prompt = ChatPromptTemplate.fromMessages([
         [
           'system',
-          `You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely.
-Current Local Time: ${new Date().toLocaleString()} (Use this to resolve relative date queries like 'this month', 'today', 'yesterday' correctly).
-IMPORTANT: At the very end of every response you give, you MUST provide exactly one related follow-up question the user could ask you next, formatted exactly like this: <suggestion>Question text here</suggestion>`,
+          "You are a highly capable personal finance assistant for the Xpense app. You can use your tools to securely query the user's real-time financial data. Be concise, friendly, and helpful. Always format financial numbers nicely. IMPORTANT: At the very end of every response you give, you MUST provide exactly one related follow-up question the user could ask you next, formatted exactly like this: <suggestion>Question text here</suggestion>",
         ],
         new MessagesPlaceholder('chat_history'),
         ['human', '{input}'],
         new MessagesPlaceholder('agent_scratchpad'),
       ]);
 
-      const model = new ChatOpenAI({
-        modelName: process.env.CLOUDFLARE_MODEL_NAME || '@cf/meta/llama-3.1-8b-instruct-fast',
-        apiKey: process.env.CLOUDFLARE_API_TOKEN || '',
-        configuration: {
-          baseURL: `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
-        },
+      const model = new ChatGoogleGenerativeAI({
+        model: process.env.GEMINI_MODEL_NAME || 'gemini-3.5-flash',
+        apiKey: process.env.GEMINI_API_KEY || '',
       });
 
       const agent = await createToolCallingAgent({ llm: model, tools, prompt });
@@ -175,31 +119,16 @@ IMPORTANT: At the very end of every response you give, you MUST provide exactly 
         if (checkCancelled()) break;
 
         if (event.event === 'on_tool_start') {
-          this.logger.log(`[Tool Used]: ${event.name} with input: ${JSON.stringify(event.data.input)}`);
-        }
-
-        if (event.event === 'on_tool_end') {
-          this.logger.log(`[Tool Finished]: ${event.name} with output: ${JSON.stringify(event.data.output)}`);
+          this.logger.log(`[Tool Used]: ${event.name}`);
         }
 
         if (
           event.event === 'on_chat_model_stream' &&
           event.data.chunk?.content
         ) {
-          const content = event.data.chunk.content;
-          this.logger.debug(`[Stream Chunk]: ${JSON.stringify(content)}`);
-          
-          if (typeof content === 'string') {
-            streamedResponse += content;
-            onWord(content);
-          } else if (Array.isArray(content)) {
-            for (const part of content) {
-              if (part.type === 'text' && part.text) {
-                streamedResponse += part.text;
-                onWord(part.text);
-              }
-            }
-          }
+          const word = event.data.chunk.content;
+          streamedResponse += word;
+          onWord(word); // Send token to client
         }
       }
 
