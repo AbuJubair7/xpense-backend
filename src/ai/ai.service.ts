@@ -167,15 +167,16 @@ The suggestion must:
     }
 
     try {
-      // Apply Payload Injection by intercepting the LangChain Tool execution
+      // Apply Payload Injection by intercepting at the lowest level (_call)
       const rawTools = await loadMcpTools('xpense-mcp', client);
-      const tools = rawTools.map(tool => {
-        const originalInvoke = tool.invoke.bind(tool);
-        tool.invoke = async (input: any, config?: any) => {
-          // Parse string inputs if necessary, though LangChain Structured tools usually pass objects
+      const tools = rawTools.map((tool: any) => {
+        const originalCall = tool._call.bind(tool);
+        tool._call = async (input: any, runManager?: any) => {
+          // Inject the user's JWT token directly into the tool arguments
           const args = typeof input === 'string' ? JSON.parse(input) : { ...input };
-          args.token = token; // Securely inject the user's JWT token into the JSON-RPC arguments payload
-          return originalInvoke(args, config);
+          args.token = token;
+          this.logger.log(`[Payload Injection] Injecting token (${token.length} chars) into tool: ${tool.name}`);
+          return originalCall(args, runManager);
         };
         return tool;
       });
