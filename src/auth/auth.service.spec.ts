@@ -44,31 +44,48 @@ describe('AuthService', () => {
 
       const result = await service.register(dto);
       expect(result).toEqual({ message: 'Registration successful', user });
-      expect(mockUsersService.create).toHaveBeenCalledWith(dto.name, dto.email, dto.password);
+      expect(mockUsersService.create).toHaveBeenCalledWith(
+        dto.name,
+        dto.email,
+        dto.password,
+      );
     });
   });
 
   describe('login', () => {
     it('should throw UnauthorizedException if user not found', async () => {
       mockUsersService.findByEmail.mockResolvedValueOnce(null);
-      await expect(service.login({ email: 'test@test.com', password: 'p' }))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.login({ email: 'test@test.com', password: 'p' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException if password incorrect', async () => {
-      mockUsersService.findByEmail.mockResolvedValueOnce({ id: '1', password: 'hash' });
+      mockUsersService.findByEmail.mockResolvedValueOnce({
+        id: '1',
+        password: 'hash',
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
-      await expect(service.login({ email: 'test@test.com', password: 'wrong' }))
-        .rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.login({ email: 'test@test.com', password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('should return token and user if login successful', async () => {
-      const user = { id: '1', name: 'Test', email: 'test@test.com', password: 'hash' };
+      const user = {
+        id: '1',
+        name: 'Test',
+        email: 'test@test.com',
+        password: 'hash',
+      };
       mockUsersService.findByEmail.mockResolvedValueOnce(user);
       (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
       mockJwtService.sign.mockReturnValueOnce('token');
 
-      const result = await service.login({ email: 'test@test.com', password: 'pass' });
+      const result = await service.login({
+        email: 'test@test.com',
+        password: 'pass',
+      });
       expect(result).toEqual({
         access_token: 'token',
         user: { id: '1', name: 'Test', email: 'test@test.com' },

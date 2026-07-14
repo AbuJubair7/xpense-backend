@@ -106,7 +106,10 @@ export class AnalyticsService {
     const totalSpendingResult = await this.expenseRepository
       .createQueryBuilder('expense')
       .select('SUM(expense.amount)', 'total')
-      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
+        { userId, startDate, endDate },
+      )
       .getRawOne();
     const totalSpending = Number(totalSpendingResult?.total || 0);
 
@@ -115,12 +118,15 @@ export class AnalyticsService {
       .createQueryBuilder('expense')
       .select('expense.category', 'category')
       .addSelect('SUM(expense.amount)', 'amount')
-      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
+        { userId, startDate, endDate },
+      )
       .groupBy('expense.category')
       .getRawMany();
 
     const categoryTotals: Record<string, number> = {};
-    categoryTotalsRaw.forEach(row => {
+    categoryTotalsRaw.forEach((row) => {
       const cat = row.category || 'Others';
       categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(row.amount);
     });
@@ -128,7 +134,10 @@ export class AnalyticsService {
     const categoryBreakdown = Object.keys(categoryTotals).map((cat) => ({
       category: cat,
       amount: Number(categoryTotals[cat].toFixed(2)),
-      percentage: totalSpending > 0 ? Number(((categoryTotals[cat] / totalSpending) * 100).toFixed(2)) : 0
+      percentage:
+        totalSpending > 0
+          ? Number(((categoryTotals[cat] / totalSpending) * 100).toFixed(2))
+          : 0,
     }));
 
     // 4. Calculate timeline totals natively in DB
@@ -143,7 +152,10 @@ export class AnalyticsService {
       .createQueryBuilder('expense')
       .select(`${dateGroupSql}`, 'period')
       .addSelect('SUM(expense.amount)', 'amount')
-      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
+        { userId, startDate, endDate },
+      )
       .groupBy(`${dateGroupSql}`)
       .getRawMany();
 
@@ -432,7 +444,10 @@ export class AnalyticsService {
       .createQueryBuilder('expense')
       .select(`${dateGroupSql}`, 'period')
       .addSelect('SUM(expense.amount)', 'amount')
-      .where('expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate', { userId, startDate, endDate })
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
+        { userId, startDate, endDate },
+      )
       .groupBy(`${dateGroupSql}`)
       .getRawMany();
 

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Module, OnModuleInit, Logger } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -12,9 +13,11 @@ import { BorrowingsModule } from './borrowings/borrowings.module';
 import { IncomeModule } from './income/income.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.SUPABASE_CONNECTION_STRING,
@@ -29,6 +32,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     IncomeModule,
     ExpensesModule,
     AnalyticsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -31,11 +31,18 @@ describe('AssetsService', () => {
     it('should successfully insert a asset', async () => {
       const dto = { name: 'Test Bank', type: 'bank', balance: 1000 };
       mockRepository.create.mockReturnValue({ ...dto, user: { id: 'user-1' } });
-      mockRepository.save.mockResolvedValue({ id: '1', ...dto, user: { id: 'user-1' } });
+      mockRepository.save.mockResolvedValue({
+        id: '1',
+        ...dto,
+        user: { id: 'user-1' },
+      });
 
       const result = await service.create(dto, 'user-1');
       expect(result.id).toBe('1');
-      expect(mockRepository.create).toHaveBeenCalledWith({ ...dto, user: { id: 'user-1' } });
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...dto,
+        user: { id: 'user-1' },
+      });
     });
   });
 
@@ -57,7 +64,9 @@ describe('AssetsService', () => {
 
     it('should throw NotFoundException if asset is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('1', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

@@ -38,15 +38,32 @@ describe('ExpensesService', () => {
 
   describe('create', () => {
     it('should successfully create expense and deduct asset balance', async () => {
-      const dto = { title: 'Food', amount: 50, date: '2026-07-01', assetId: 'asset-1', category: 'Food' };
-      mockAssetsService.findOne.mockResolvedValue({ id: 'asset-1', balance: 500 });
+      const dto = {
+        title: 'Food',
+        amount: 50,
+        date: '2026-07-01',
+        assetId: 'asset-1',
+        category: 'Food',
+      };
+      mockAssetsService.findOne.mockResolvedValue({
+        id: 'asset-1',
+        balance: 500,
+      });
       mockRepository.create.mockReturnValue({ ...dto, user: { id: 'user-1' } });
-      mockRepository.save.mockResolvedValue({ id: '1', ...dto, user: { id: 'user-1' } });
+      mockRepository.save.mockResolvedValue({
+        id: '1',
+        ...dto,
+        user: { id: 'user-1' },
+      });
 
       const result = await service.create(dto, 'user-1');
-      
+
       expect(result.id).toBe('1');
-      expect(mockAssetsService.update).toHaveBeenCalledWith('asset-1', { balance: 450 }, 'user-1');
+      expect(mockAssetsService.update).toHaveBeenCalledWith(
+        'asset-1',
+        { balance: 450 },
+        'user-1',
+      );
     });
   });
 
@@ -61,7 +78,9 @@ describe('ExpensesService', () => {
   describe('findOne', () => {
     it('should throw NotFoundException if expense is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('1', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

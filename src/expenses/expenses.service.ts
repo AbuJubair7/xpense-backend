@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { AssetsService } from '../assets/assets.service';
@@ -42,11 +42,28 @@ export class ExpensesService {
     return savedExpense;
   }
 
-  async findAll(userId: string): Promise<Expense[]> {
+  async findAll(
+    userId: string,
+    limit?: number,
+    category?: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Expense[]> {
+    const where: any = { user: { id: userId } };
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (startDate && endDate) {
+      where.date = Between(startDate, endDate);
+    }
+
     return this.expenseRepository.find({
-      where: { user: { id: userId } },
+      where,
       relations: { asset: true },
       order: { date: 'DESC', createdAt: 'DESC' },
+      take: limit,
     });
   }
 

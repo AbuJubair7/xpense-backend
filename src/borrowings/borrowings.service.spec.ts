@@ -30,18 +30,34 @@ describe('BorrowingsService', () => {
   describe('create', () => {
     it('should successfully create a borrowing', async () => {
       const dto = { creditorName: 'Friend', amount: 1000, date: '2026-07-01' };
-      mockRepository.create.mockReturnValue({ ...dto, user: { id: 'user-1' }, isSettled: false });
-      mockRepository.save.mockResolvedValue({ id: '1', ...dto, user: { id: 'user-1' }, isSettled: false });
+      mockRepository.create.mockReturnValue({
+        ...dto,
+        user: { id: 'user-1' },
+        isSettled: false,
+      });
+      mockRepository.save.mockResolvedValue({
+        id: '1',
+        ...dto,
+        user: { id: 'user-1' },
+        isSettled: false,
+      });
 
       const result = await service.create(dto, 'user-1');
       expect(result.isSettled).toBe(false);
-      expect(mockRepository.create).toHaveBeenCalledWith({ ...dto, user: { id: 'user-1' }, isSettled: false });
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...dto,
+        user: { id: 'user-1' },
+        isSettled: false,
+      });
     });
   });
 
   describe('findAll', () => {
     it('should return paginated borrowings', async () => {
-      mockRepository.findAndCount.mockResolvedValue([[{ id: '1', creditorName: 'Friend' }], 1]);
+      mockRepository.findAndCount.mockResolvedValue([
+        [{ id: '1', creditorName: 'Friend' }],
+        1,
+      ]);
       const result = await service.findAll('user-1', 1, 10);
       expect(result.data).toHaveLength(1);
       expect(result.pagination.total).toBe(1);
@@ -66,7 +82,9 @@ describe('BorrowingsService', () => {
   describe('findOne', () => {
     it('should throw NotFoundException if borrowing is not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('1', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

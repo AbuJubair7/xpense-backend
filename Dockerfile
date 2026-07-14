@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code and build
 COPY . .
@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Copy package files and install only production dependencies
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Copy compiled source code
 COPY --from=build /app/dist ./dist
