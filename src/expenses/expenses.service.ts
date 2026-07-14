@@ -50,15 +50,15 @@ export class ExpensesService {
     endDate?: string,
   ): Promise<Expense[]> {
     const where: any = { user: { id: userId } };
-    
+
     if (category) {
       where.category = category;
     }
-    
+
     if (startDate && endDate) {
       where.date = Between(startDate, endDate);
     }
-    
+
     return this.expenseRepository.find({
       where,
       relations: { asset: true },
