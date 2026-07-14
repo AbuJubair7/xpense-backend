@@ -44,7 +44,8 @@ export class AiService implements OnModuleInit {
       modelName: process.env.OPENROUTER_MODEL_NAME || 'openrouter/free',
       apiKey: apiKey || '',
       configuration: {
-        baseURL: 'https://openrouter.ai/api/v1',
+        baseURL:
+          process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
       },
       temperature: 0.3,
       maxRetries: 2,
@@ -146,9 +147,9 @@ The suggestion must:
     const mcpApiKey = process.env.MCPIZE_API_KEY;
     const transport = new StreamableHTTPClientTransport(mcpUrl, {
       requestInit: {
-        headers: { 
+        headers: {
           ...(mcpApiKey ? { Authorization: `Bearer ${mcpApiKey}` } : {}),
-          'X-Xpense-Token': `Bearer ${token}` 
+          'X-Xpense-Token': `Bearer ${token}`,
         },
       },
     });
