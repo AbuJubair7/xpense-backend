@@ -151,6 +151,7 @@ The suggestion must:
       requestInit: {
         headers: {
           ...(mcpApiKey ? { Authorization: `Bearer ${mcpApiKey}` } : {}),
+          'Cookie': `xpense_token=${token}`,
         },
       },
     });
