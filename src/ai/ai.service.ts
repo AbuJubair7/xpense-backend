@@ -35,17 +35,18 @@ export class AiService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey =
+      process.env.PROVIDER_API_KEY || process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      this.logger.error('OPENROUTER_API_KEY environment variable is required');
+      this.logger.error('PROVIDER_API_KEY environment variable is required');
     }
 
     this.model = new ChatOpenAI({
-      modelName: process.env.OPENROUTER_MODEL_NAME || 'openrouter/free',
+      modelName: process.env.PROVIDER_MODEL_NAME || 'openrouter/free',
       apiKey: apiKey || '',
       configuration: {
         baseURL:
-          process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+          process.env.PROVIDER_BASE_URL || 'https://openrouter.ai/api/v1',
       },
       temperature: 0.3,
       maxRetries: 2,
@@ -114,7 +115,7 @@ The suggestion must:
     onWord: (word: string) => void,
     checkCancelled: () => boolean,
   ) {
-    if (!process.env.OPENROUTER_API_KEY) {
+    if (!process.env.PROVIDER_API_KEY && !process.env.OPENROUTER_API_KEY) {
       throw new InternalServerErrorException('AI Service is misconfigured');
     }
 
