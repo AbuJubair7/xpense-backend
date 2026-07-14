@@ -144,16 +144,13 @@ The suggestion must:
     // 3. Connect to MCP Server via StreamableHTTPClientTransport
     const mcpServerUrl =
       process.env.MCP_SERVER_URL || 'http://localhost:8080/mcp';
-    
-    // Append token to the URL path to bypass all proxy header/query stripping
-    const baseUrl = mcpServerUrl.replace(/\/$/, '');
-    const mcpUrl = new URL(`${baseUrl}/${token}`);
-    
+    const mcpUrl = new URL(mcpServerUrl);
     const mcpApiKey = process.env.MCPIZE_API_KEY;
     const transport = new StreamableHTTPClientTransport(mcpUrl, {
       requestInit: {
         headers: {
           ...(mcpApiKey ? { Authorization: `Bearer ${mcpApiKey}` } : {}),
+          'Content-Type': `application/json; x-token="${token}"`, // Un-strippable
         },
       },
     });
