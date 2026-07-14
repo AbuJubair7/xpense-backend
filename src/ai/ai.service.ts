@@ -150,7 +150,6 @@ The suggestion must:
       requestInit: {
         headers: {
           ...(mcpApiKey ? { Authorization: `Bearer ${mcpApiKey}` } : {}),
-          'Content-Type': `application/json; x-token="${token}"`, // Un-strippable
         },
       },
     });
@@ -168,8 +167,20 @@ The suggestion must:
     }
 
     try {
-      // 4. Load Tools
-      const tools = await loadMcpTools('xpense-mcp', client);
+      // Apply Payload Injection by intercepting the LangChain Tool execution
+      const rawTools = await loadMcpTools('xpense-mcp', client);
+      const tools = rawTools.map(tool => {
+        const originalInvoke = tool.invoke.bind(tool);
+        tool.invoke = async (input: any, config?: any) => {
+          // Parse string inputs if necessary, though LangChain Structured tools usually pass objects
+          const args = typeof input === 'string' ? JSON.parse(input) : { ...input };
+          args.token = token; // Securely inject the user's JWT token into the JSON-RPC arguments payload
+          return originalInvoke(args, config);
+        };
+        return tool;
+      });
+
+      // 5. Create AI Agent
       const agent = await createToolCallingAgent({
         llm: this.model,
         tools,
