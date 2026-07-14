@@ -50,15 +50,15 @@ export class IncomeService {
     endDate?: string,
   ): Promise<Income[]> {
     const where: any = { user: { id: userId } };
-    
+
     if (source) {
       where.source = source;
     }
-    
+
     if (startDate && endDate) {
       where.date = Between(startDate, endDate);
     }
-    
+
     return this.incomeRepository.find({
       where,
       relations: { asset: true },
