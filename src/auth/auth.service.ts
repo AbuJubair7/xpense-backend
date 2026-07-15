@@ -51,21 +51,35 @@ export class AuthService {
     };
   }
 
-  async googleLogin(accessToken: string) {
+  async googleLogin(credential: string) {
     let payload;
     try {
-      const response = await fetch(
-        'https://www.googleapis.com/oauth2/v3/userinfo',
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
-      if (!response.ok) {
-        throw new Error('Failed to fetch user info');
+      // Android Credential Manager returns an OpenID Connect ID token. The
+      // browser client currently sends an OAuth access token, so retain that
+      // path while validating native tokens cryptographically and by audience.
+      if (credential.split('.').length === 3) {
+        const allowedClientIds = [
+          process.env.GOOGLE_CLIENT_ID,
+          process.env.GOOGLE_WEB_CLIENT_ID,
+          process.env.GOOGLE_ANDROID_CLIENT_ID,
+          process.env.GOOGLE_IOS_CLIENT_ID,
+        ].filter(Boolean) as string[];
+        if (!allowedClientIds.length) throw new Error('No GOOGLE_*_CLIENT_ID is configured');
+        const ticket = await new OAuth2Client().verifyIdToken({
+          idToken: credential,
+          audience: allowedClientIds,
+        });
+        payload = ticket.getPayload();
+      } else {
+        const response = await fetch(
+          'https://www.googleapis.com/oauth2/v3/userinfo',
+          { headers: { Authorization: `Bearer ${credential}` } },
+        );
+        if (!response.ok) throw new Error('Failed to fetch user info');
+        payload = await response.json();
       }
-      payload = await response.json();
     } catch (e) {
-      throw new UnauthorizedException('Invalid Google access token');
+      throw new UnauthorizedException('Invalid Google credential');
     }
 
     if (!payload || !payload.email) {
