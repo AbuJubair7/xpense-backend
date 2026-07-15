@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   Body,
   UseGuards,
   Request,
@@ -17,6 +19,23 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 @Controller('ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
+
+  @Get('chat')
+  async getChatHistory(
+    @Request() req,
+    @Res() res: Response,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    const parsedSkip = skip ? parseInt(skip, 10) : 0;
+    const history = await this.aiService.getUserChatHistory(
+      req.user.id,
+      parsedLimit,
+      parsedSkip,
+    );
+    res.status(200).send(history);
+  }
 
   @Post('chat')
   async chat(

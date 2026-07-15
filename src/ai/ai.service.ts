@@ -108,6 +108,22 @@ The suggestion must:
     }
   }
 
+  async getUserChatHistory(userId: string, limit: number = 20, skip: number = 0) {
+    try {
+      const history = await this.chatMessageRepository.find({
+        where: { user: { id: userId } },
+        order: { createdAt: 'DESC' },
+        take: limit,
+        skip: skip,
+      });
+      history.reverse();
+      return history;
+    } catch (error) {
+      this.logger.error(`Failed to get chat history for user ${userId}`, error);
+      throw new InternalServerErrorException('Could not fetch chat history');
+    }
+  }
+
   public async getChatResponse(
     userId: string,
     token: string,
