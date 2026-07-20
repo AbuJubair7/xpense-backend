@@ -374,6 +374,7 @@ export class AnalyticsService {
       assetId: item.assetId,
       assetName: assetsMap[item.assetId]?.name || 'Unknown account',
       assetType: assetsMap[item.assetId]?.type || 'bank',
+      createdAt: item.createdAt,
     }));
 
     return {
