@@ -97,13 +97,30 @@ describe('ExpensesService', () => {
   });
 
   describe('remove', () => {
-    it('should remove expense', async () => {
-      const expense = { id: '1' };
+    it('should remove expense and restore asset balance', async () => {
+      const expense = { id: '1', amount: 50, asset: { id: 'asset-1' }, user: { id: 'user-1' } };
       mockRepository.findOne.mockResolvedValue(expense);
       mockRepository.remove.mockResolvedValue(expense);
+      mockAssetsService.update.mockResolvedValue({ id: 'asset-1', balance: 550 });
 
       await service.remove('1', 'user-1');
       expect(mockRepository.remove).toHaveBeenCalledWith(expense);
+      expect(mockAssetsService.update).toHaveBeenCalledWith(
+        'asset-1',
+        { balance: expect.any(Number) },
+        'user-1',
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('should update expense and adjust asset balance', async () => {
+      const expense = { id: '1', amount: 50, asset: { id: 'asset-1' }, user: { id: 'user-1' } };
+      const dto = { amount: 80 };
+      mockAssetsService.update.mockResolvedValue({ id: 'asset-1', balance: 420 });
+
+      const result = await service.update('1', dto, 'user-1');
+      expect(mockAssetsService.update).toHaveBeenCalled();
     });
   });
 });

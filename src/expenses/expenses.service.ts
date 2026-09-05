@@ -98,8 +98,12 @@ export class ExpensesService {
 
       const oldAmount = Number(expense.amount);
       const newAmount = updateExpenseDto.amount ?? oldAmount;
-      const oldAssetId = expense.asset.id;
+      const oldAssetId = expense.asset?.id;
       const newAssetId = updateExpenseDto.assetId ?? oldAssetId;
+
+      if (!oldAssetId) {
+        throw new NotFoundException('Expense has no associated asset');
+      }
 
       if (newAssetId !== oldAssetId) {
         const oldAsset = await manager.findOne(Asset, { where: { id: oldAssetId } });

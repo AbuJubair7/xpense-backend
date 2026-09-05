@@ -98,8 +98,12 @@ export class IncomeService {
 
       const oldAmount = Number(income.amount);
       const newAmount = updateIncomeDto.amount ?? oldAmount;
-      const oldAssetId = income.asset.id;
+      const oldAssetId = income.asset?.id;
       const newAssetId = updateIncomeDto.assetId ?? oldAssetId;
+
+      if (!oldAssetId) {
+        throw new NotFoundException('Income has no associated asset');
+      }
 
       if (newAssetId !== oldAssetId) {
         const oldAsset = await manager.findOne(Asset, { where: { id: oldAssetId } });
