@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Income } from './entities/income.entity';
 import { AssetsService } from '../assets/assets.service';
 import { NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 describe('IncomeService', () => {
   let service: IncomeService;
@@ -22,12 +23,23 @@ describe('IncomeService', () => {
     update: jest.fn(),
   };
 
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation((fn: any) =>
+      fn({
+        findOne: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+      }),
+    ),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IncomeService,
         { provide: getRepositoryToken(Income), useValue: mockRepository },
         { provide: AssetsService, useValue: mockAssetsService },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 

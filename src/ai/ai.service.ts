@@ -37,12 +37,12 @@ export class AiService implements OnModuleInit {
   onModuleInit() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      this.logger.error('GEMINI_API_KEY environment variable is required');
+      throw new Error('GEMINI_API_KEY environment variable is required');
     }
 
     this.model = new ChatGoogleGenerativeAI({
       model: process.env.GEMINI_MODEL_NAME || 'gemini-3.1-flash-lite',
-      apiKey: apiKey || '',
+      apiKey,
       temperature: 0.3,
       maxRetries: 2,
     });
