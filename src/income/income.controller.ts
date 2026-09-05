@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Delete,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { IncomeService } from './income.service';
 import { CreateIncomeDto } from './dto/create-income.dto';
+import { UpdateIncomeDto } from './dto/update-income.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -44,6 +46,15 @@ export class IncomeController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     return this.incomeService.findOne(id, req.user.id);
+  }
+
+  @Put(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateIncomeDto: UpdateIncomeDto,
+    @Request() req,
+  ) {
+    return this.incomeService.update(id, updateIncomeDto, req.user.id);
   }
 
   @Delete(':id')

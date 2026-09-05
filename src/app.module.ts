@@ -20,7 +20,15 @@ import { AiModule } from './ai/ai.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.SUPABASE_CONNECTION_STRING,
+      ...(process.env.SUPABASE_CONNECTION_STRING
+        ? { url: process.env.SUPABASE_CONNECTION_STRING }
+        : {
+            host: process.env.DB_HOST,
+            port: parseInt(process.env.DB_PORT || '5432', 10),
+            username: process.env.DB_USERNAME,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+          }),
       autoLoadEntities: true,
       synchronize: process.env.DB_SYNCHRONIZE !== 'false',
     }),
@@ -44,7 +52,7 @@ export class AppModule implements OnModuleInit {
 
   onModuleInit() {
     if (this.dataSource.isInitialized) {
-      this.logger.log('Successfully connected to Supabase Database');
+      this.logger.log(`Successfully connected to ${process.env.SUPABASE_CONNECTION_STRING ? 'Supabase' : 'local'} Database`);
     }
   }
 }

@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatMessage } from './entities/chat-message.entity';
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import {
   createToolCallingAgent,
   AgentExecutor,
@@ -26,7 +26,7 @@ import chalk from 'chalk';
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
-  private model: ChatOpenAI;
+  private model: ChatGoogleGenerativeAI;
   private prompt: ChatPromptTemplate;
 
   constructor(
@@ -35,19 +35,14 @@ export class AiService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const apiKey =
-      process.env.PROVIDER_API_KEY || process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      this.logger.error('PROVIDER_API_KEY environment variable is required');
+      throw new Error('GEMINI_API_KEY environment variable is required');
     }
 
-    this.model = new ChatOpenAI({
-      modelName: process.env.PROVIDER_MODEL_NAME || 'openrouter/free',
-      apiKey: apiKey || '',
-      configuration: {
-        baseURL:
-          process.env.PROVIDER_BASE_URL || 'https://openrouter.ai/api/v1',
-      },
+    this.model = new ChatGoogleGenerativeAI({
+      model: process.env.GEMINI_MODEL_NAME || 'gemini-3.1-flash-lite',
+      apiKey,
       temperature: 0.3,
       maxRetries: 2,
     });
@@ -131,7 +126,7 @@ The suggestion must:
     onWord: (word: string) => void,
     checkCancelled: () => boolean,
   ) {
-    if (!process.env.PROVIDER_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       throw new InternalServerErrorException('AI Service is misconfigured');
     }
 
