@@ -24,6 +24,63 @@ export class AnalyticsService {
     return new Date(year, month, 0).getDate();
   }
 
+  private async getTimelinePeriodData(
+    userId: string,
+    startDate: string,
+    endDate: string,
+    filterType: 'day' | 'month' | 'year',
+  ): Promise<{ period: string; amount: number }[]> {
+    const dateGroupSql =
+      filterType === 'month'
+        ? `TO_CHAR(expense.date, 'YYYY-MM')`
+        : filterType === 'year'
+          ? `TO_CHAR(expense.date, 'YYYY')`
+          : `TO_CHAR(expense.date, 'YYYY-MM-DD')`;
+
+    const rows = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .select(dateGroupSql, 'period')
+      .addSelect('SUM(expense.amount)', 'amount')
+      .where(
+        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
+        { userId, startDate, endDate },
+      )
+      .groupBy(dateGroupSql)
+      .getRawMany();
+
+    const totals: Record<string, number> = {};
+    for (const row of rows) {
+      totals[row.period] = Number(row.amount);
+    }
+
+    const periodData: { period: string; amount: number }[] = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (filterType === 'day') {
+      const current = new Date(start);
+      while (current <= end) {
+        const key = current.toISOString().split('T')[0];
+        periodData.push({ period: key, amount: Number((totals[key] || 0).toFixed(2)) });
+        current.setDate(current.getDate() + 1);
+      }
+    } else if (filterType === 'month') {
+      const current = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (current <= end) {
+        const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+        periodData.push({ period: key, amount: Number((totals[key] || 0).toFixed(2)) });
+        current.setMonth(current.getMonth() + 1);
+      }
+    } else {
+      for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
+        const key = String(y);
+        periodData.push({ period: key, amount: Number((totals[key] || 0).toFixed(2)) });
+      }
+    }
+
+    return periodData;
+  }
+
   // Helper to parse inputs and return start and end date strings (YYYY-MM-DD)
   private parseDateRange(query: {
     fromDay?: string;
@@ -140,65 +197,8 @@ export class AnalyticsService {
           : 0,
     }));
 
-    // 4. Calculate timeline totals natively in DB
-    let dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM-DD')`;
-    if (filterType === 'month') {
-      dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM')`;
-    } else if (filterType === 'year') {
-      dateGroupSql = `TO_CHAR(expense.date, 'YYYY')`;
-    }
-
-    const timelineTotalsRaw = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .select(`${dateGroupSql}`, 'period')
-      .addSelect('SUM(expense.amount)', 'amount')
-      .where(
-        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
-        { userId, startDate, endDate },
-      )
-      .groupBy(`${dateGroupSql}`)
-      .getRawMany();
-
-    const timelineTotals: { [key: string]: number } = {};
-    timelineTotalsRaw.forEach((row) => {
-      timelineTotals[row.period] = Number(row.amount);
-    });
-
-    const timelineData: { period: string; amount: number }[] = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (filterType === 'day') {
-      const current = new Date(start);
-      while (current <= end) {
-        const key = current.toISOString().split('T')[0];
-        timelineData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-        current.setDate(current.getDate() + 1);
-      }
-    } else if (filterType === 'month') {
-      const current = new Date(start.getFullYear(), start.getMonth(), 1);
-      while (current <= end) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const key = `${year}-${month}`;
-        timelineData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-        current.setMonth(current.getMonth() + 1);
-      }
-    } else {
-      for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
-        const key = String(y);
-        timelineData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-      }
-    }
+    // 4. Build timeline data from DB aggregation
+    const timelineData = await this.getTimelinePeriodData(userId, startDate, endDate, filterType);
 
     return {
       transactions,
@@ -305,7 +305,7 @@ export class AnalyticsService {
       includeIncome = false;
     }
 
-    const incomeSql = `SELECT id, 'credit' as kind, source as title, description, amount, date, "assetId", "createdAt" FROM income WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
+    const incomeSql = `SELECT id, 'credit' as kind, source as title, description, NULL as category, amount, date, "assetId", "createdAt" FROM income WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
     const expenseSql = `SELECT id, 'debit' as kind, title, description, category, amount, date, "assetId", "createdAt" FROM expenses WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
 
     let baseSql = '';
@@ -434,66 +434,7 @@ export class AnalyticsService {
       endDate = toDate ? `${toDate}-12-31` : `${currentYear}-12-31`;
     }
 
-    // Calculate timeline totals natively in DB
-    let dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM-DD')`;
-    if (type === 'month') {
-      dateGroupSql = `TO_CHAR(expense.date, 'YYYY-MM')`;
-    } else if (type === 'year') {
-      dateGroupSql = `TO_CHAR(expense.date, 'YYYY')`;
-    }
-
-    const timelineTotalsRaw = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .select(`${dateGroupSql}`, 'period')
-      .addSelect('SUM(expense.amount)', 'amount')
-      .where(
-        'expense.userId = :userId AND expense.date BETWEEN :startDate AND :endDate',
-        { userId, startDate, endDate },
-      )
-      .groupBy(`${dateGroupSql}`)
-      .getRawMany();
-
-    const timelineTotals: { [key: string]: number } = {};
-    timelineTotalsRaw.forEach((row) => {
-      timelineTotals[row.period] = Number(row.amount);
-    });
-
-    const periodData: { period: string; amount: number }[] = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (type === 'day') {
-      const current = new Date(start);
-      while (current <= end) {
-        const key = current.toISOString().split('T')[0];
-        periodData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-        current.setDate(current.getDate() + 1);
-      }
-    } else if (type === 'month') {
-      const current = new Date(start.getFullYear(), start.getMonth(), 1);
-      while (current <= end) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const key = `${year}-${month}`;
-
-        periodData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-        current.setMonth(current.getMonth() + 1);
-      }
-    } else {
-      for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
-        const key = String(y);
-        periodData.push({
-          period: key,
-          amount: Number((timelineTotals[key] || 0).toFixed(2)),
-        });
-      }
-    }
+    const periodData = await this.getTimelinePeriodData(userId, startDate, endDate, type);
 
     const totalAmount = periodData.reduce((sum, item) => sum + item.amount, 0);
     const intervalsCount = periodData.length;
