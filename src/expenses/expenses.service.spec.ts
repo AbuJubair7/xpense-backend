@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Expense } from './entities/expense.entity';
 import { AssetsService } from '../assets/assets.service';
 import { NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 describe('ExpensesService', () => {
   let service: ExpensesService;
@@ -22,12 +23,23 @@ describe('ExpensesService', () => {
     update: jest.fn(),
   };
 
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation((fn: any) =>
+      fn({
+        findOne: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+      }),
+    ),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExpensesService,
         { provide: getRepositoryToken(Expense), useValue: mockRepository },
         { provide: AssetsService, useValue: mockAssetsService },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -85,13 +97,30 @@ describe('ExpensesService', () => {
   });
 
   describe('remove', () => {
-    it('should remove expense', async () => {
-      const expense = { id: '1' };
+    it('should remove expense and restore asset balance', async () => {
+      const expense = { id: '1', amount: 50, asset: { id: 'asset-1' }, user: { id: 'user-1' } };
       mockRepository.findOne.mockResolvedValue(expense);
       mockRepository.remove.mockResolvedValue(expense);
+      mockAssetsService.update.mockResolvedValue({ id: 'asset-1', balance: 550 });
 
       await service.remove('1', 'user-1');
       expect(mockRepository.remove).toHaveBeenCalledWith(expense);
+      expect(mockAssetsService.update).toHaveBeenCalledWith(
+        'asset-1',
+        { balance: expect.any(Number) },
+        'user-1',
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('should update expense and adjust asset balance', async () => {
+      const expense = { id: '1', amount: 50, asset: { id: 'asset-1' }, user: { id: 'user-1' } };
+      const dto = { amount: 80 };
+      mockAssetsService.update.mockResolvedValue({ id: 'asset-1', balance: 420 });
+
+      const result = await service.update('1', dto, 'user-1');
+      expect(mockAssetsService.update).toHaveBeenCalled();
     });
   });
 });

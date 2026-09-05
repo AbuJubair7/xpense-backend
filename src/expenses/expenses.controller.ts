@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Delete,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -44,6 +46,15 @@ export class ExpensesController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
     return this.expensesService.findOne(id, req.user.id);
+  }
+
+  @Put(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateExpenseDto: UpdateExpenseDto,
+    @Request() req,
+  ) {
+    return this.expensesService.update(id, updateExpenseDto, req.user.id);
   }
 
   @Delete(':id')

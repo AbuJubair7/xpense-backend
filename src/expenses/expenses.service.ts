@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, DataSource } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { AssetsService } from '../assets/assets.service';
+import { Asset } from '../assets/entities/asset.entity';
 
 @Injectable()
 export class ExpensesService {
@@ -11,6 +13,7 @@ export class ExpensesService {
     @InjectRepository(Expense)
     private readonly expenseRepository: Repository<Expense>,
     private readonly assetsService: AssetsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -78,8 +81,78 @@ export class ExpensesService {
     return expense;
   }
 
+  async update(
+    id: string,
+    updateExpenseDto: UpdateExpenseDto,
+    userId: string,
+  ): Promise<Expense> {
+    return this.dataSource.transaction(async (manager) => {
+      const expense = await manager.findOne(Expense, {
+        where: { id, user: { id: userId } },
+        relations: { asset: true },
+      });
+
+      if (!expense) {
+        throw new NotFoundException(`Expense with ID ${id} not found`);
+      }
+
+      const oldAmount = Number(expense.amount);
+      const newAmount = updateExpenseDto.amount ?? oldAmount;
+      const oldAssetId = expense.asset?.id;
+      const newAssetId = updateExpenseDto.assetId ?? oldAssetId;
+
+      if (!oldAssetId) {
+        throw new NotFoundException('Expense has no associated asset');
+      }
+
+      if (newAssetId !== oldAssetId) {
+        const oldAsset = await manager.findOne(Asset, { where: { id: oldAssetId } });
+        if (oldAsset) {
+          await manager.save(Asset, {
+            id: oldAssetId,
+            balance: Number(oldAsset.balance) + oldAmount,
+          });
+        }
+
+        const newAsset = await manager.findOne(Asset, { where: { id: newAssetId } });
+        if (!newAsset) {
+          throw new NotFoundException(`Asset with ID ${newAssetId} not found`);
+        }
+        await manager.save(Asset, {
+          id: newAssetId,
+          balance: Number(newAsset.balance) - newAmount,
+        });
+      } else {
+        const asset = await manager.findOne(Asset, { where: { id: oldAssetId } });
+        if (asset) {
+          const balanceDiff = oldAmount - newAmount;
+          await manager.save(Asset, {
+            id: oldAssetId,
+            balance: Number(asset.balance) + balanceDiff,
+          });
+        }
+      }
+
+      Object.assign(expense, updateExpenseDto);
+      if (updateExpenseDto.assetId) {
+        expense.asset = manager.create(Asset, { id: newAssetId });
+      }
+
+      return manager.save(Expense, expense);
+    });
+  }
+
   async remove(id: string, userId: string): Promise<void> {
     const expense = await this.findOne(id, userId);
+    if (expense.asset) {
+      await this.assetsService.update(
+        expense.asset.id,
+        {
+          balance: Number(expense.asset.balance) + Number(expense.amount),
+        },
+        userId,
+      );
+    }
     await this.expenseRepository.remove(expense);
   }
 }
