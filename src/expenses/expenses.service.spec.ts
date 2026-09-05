@@ -23,14 +23,14 @@ describe('ExpensesService', () => {
     update: jest.fn(),
   };
 
+  const mockManager = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
+
   const mockDataSource = {
-    transaction: jest.fn().mockImplementation((fn: any) =>
-      fn({
-        findOne: jest.fn(),
-        save: jest.fn(),
-        create: jest.fn(),
-      }),
-    ),
+    transaction: jest.fn().mockImplementation((fn: any) => fn(mockManager)),
   };
 
   beforeEach(async () => {
@@ -116,11 +116,17 @@ describe('ExpensesService', () => {
   describe('update', () => {
     it('should update expense and adjust asset balance', async () => {
       const expense = { id: '1', amount: 50, asset: { id: 'asset-1' }, user: { id: 'user-1' } };
+      const asset = { id: 'asset-1', balance: 500 };
       const dto = { amount: 80 };
-      mockAssetsService.update.mockResolvedValue({ id: 'asset-1', balance: 420 });
+
+      mockManager.findOne
+        .mockResolvedValueOnce(expense)
+        .mockResolvedValueOnce(asset);
+      mockManager.save.mockResolvedValue({ id: '1', amount: 80 });
 
       const result = await service.update('1', dto, 'user-1');
-      expect(mockAssetsService.update).toHaveBeenCalled();
+      expect(mockManager.findOne).toHaveBeenCalledTimes(2);
+      expect(mockManager.save).toHaveBeenCalled();
     });
   });
 });
