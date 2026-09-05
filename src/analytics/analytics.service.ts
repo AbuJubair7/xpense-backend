@@ -306,7 +306,7 @@ export class AnalyticsService {
     }
 
     const incomeSql = `SELECT id, 'credit' as kind, source as title, description, amount, date, "assetId", "createdAt" FROM income WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
-    const expenseSql = `SELECT id, 'debit' as kind, title, description, amount, date, "assetId", "createdAt" FROM expenses WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
+    const expenseSql = `SELECT id, 'debit' as kind, title, description, category, amount, date, "assetId", "createdAt" FROM expenses WHERE "userId" = $1 ${dateFilter} ${assetFilter}`;
 
     let baseSql = '';
     if (includeIncome && includeExpense) {
@@ -369,6 +369,7 @@ export class AnalyticsService {
       kind: item.kind,
       title: item.title,
       description: item.description,
+      category: item.category,
       amount: Number(item.amount),
       date: item.date,
       assetId: item.assetId,
